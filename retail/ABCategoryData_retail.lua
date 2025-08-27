@@ -23,9 +23,9 @@ function ToyCategory:new(p_description, p_short_texture, p_pt_name)
 	obj:init(p_description, "Interface\\Icons\\" .. p_short_texture)
 
 	obj.is_toy = true
-
-	--All items in the category
-	obj.all_items = {}
+	obj.only_favourites = false
+	obj.all_items = {} --All items in the category
+	obj.items = {}
 
 	if(p_pt_name) then
 		local raw_list = code.AddPTSetToRawList({}, p_pt_name, false)
@@ -39,31 +39,38 @@ end
 
 -- Reset the item list in case the player learned new toys
 function ToyCategory:Refresh()
-	local list_index = 1
-	local debug = false --(self.categoryKey == "Muffin.Toys.Hearth")
-	if(debug) then code.log_warning("Refreshing Toy Category", self.categoryKey, "Items:", #self.items, "All:", #self.all_items); end
-
 	wipe(self.items)
 
-	if(self.only_favourites == nil) then
-		if(debug) then code.log_warning("Exiting Toy Refresh, button settings aren't loaded|n"); end
-		return
-	end
+  -- OPTIONAL (debug-only) validator to catch bad PT entries:
+  -- for i, id in ipairs(self.all_items) do
+  --   if type(id) ~= "number" then code.log_warning("Toy PT entry not itemID:", tostring(id)) end
+  -- end
+
+  	local only_faves = self.only_favourites == true
+
+	local debug = false --(self.categoryKey == "Muffin.Toys.Hearth")
+	if(debug) then code.log_warning("Refreshing Toy Category", self.categoryKey, "Items:", #self.items, "All:", #self.all_items, "OnlyFaves:", only_faves); end
+
 	local DEBUG_IDS = code.make_set{182773, 172179}
+	local list_index = 1
 
 	for _, toy_id in ipairs(self.all_items) do
-		local toy_info = AutoBarSearch:RegisterToy(toy_id)
-		local user_selected = (self.only_favourites and toy_info.is_fave) or not self.only_favourites
-		local has_toy = AB.PlayerHasToy(toy_id)
-		local is_usable = AB.IsToyUsable(toy_id)
-		if(debug and DEBUG_IDS[toy_id]) then code.log_warning(toy_id, toy_info.name, "HasToy:", has_toy, "Usable:", is_usable, "fave:", toy_info.is_fave, "select:", user_selected, "OnlyFave:", self.only_favourites); end
-		if (toy_id and has_toy and is_usable and user_selected) then
-			self.items[list_index] = code.ToyGUID(toy_id)
+        local has_toy = AB.PlayerHasToy(toy_id)
+		local selected = (not only_faves or AutoBarSearch:IsToyFavourite(toy_id))
+		if(debug and DEBUG_IDS[toy_id]) then code.log_warning(toy_id, "HasToy:", has_toy); end
+
+		if (toy_id and has_toy and selected) then
+			local toy_info = AutoBarSearch:RegisterToy(toy_id)
+			self.items[list_index] = toy_info.guid
 			list_index = list_index + 1
 		end
 	end
 
-	if(debug) then code.log_warning("After Refreshing Toy Category", self.categoryKey, "Items:", #self.items, "All:", #self.all_items, "|n"); end
+	if AutoBarSearch.items then
+		AutoBarSearch.items:RePopulateByCategory(self.categoryKey)
+	end
+
+	if(debug) then code.log_warning("After Refreshing Toy Category", self.categoryKey, "Items:", #self.items, "All:", #self.all_items, "OnlyFaves:", only_faves, "|n"); end
 
 end
 
@@ -209,6 +216,7 @@ function AB.InitializeCategories()
 		"PALADIN", code.get_spell_name_by_name("Blessing of Spellwarding"),
 		"PRIEST", code.get_spell_name_by_name("Levitate"),
 		"PRIEST", code.get_spell_name_by_name("Power Word: Fortitude"),
+		"SHAMAN", code.get_spell_name_by_name("Skyfury"),
 		"SHAMAN", code.get_spell_name_by_name("Water Walking"),
 		"WARLOCK", code.get_spell_name_by_name("Unending Breath"),
 		"WARLOCK", code.get_spell_name_by_name("Soulstone"),
@@ -349,6 +357,9 @@ function AB.InitializeCategories()
 		"PALADIN", 		code.get_spell_name_by_name("Divine Shield"), code.get_spell_name_by_name("Divine Shield"),
 		"PRIEST", 		code.get_spell_name_by_name("Power Word: Shield"), code.get_spell_name_by_name("Power Word: Barrier"),
 		"ROGUE", 		code.get_spell_name_by_name("Evasion"), 		code.get_spell_name_by_name("Evasion"),
+		"SHAMAN", 		code.get_spell_name_by_name("Lightning Shield"),		code.get_spell_name_by_name("Earth Shield"),
+		"SHAMAN", 		code.get_spell_name_by_name("Earth Shield"),		code.get_spell_name_by_name("Lightning Shield"),
+		"SHAMAN", 		code.get_spell_name_by_name("Water Shield"),		code.get_spell_name_by_name("Water Shield"),
 		"WARLOCK", 		code.get_spell_name_by_name("Unending Resolve"), code.get_spell_name_by_name("Unending Resolve"),
 		"WARRIOR", 		code.get_spell_name_by_name("Shield Block"), code.get_spell_name_by_name("Shield Wall"),
 		"WARRIOR", 		code.get_spell_name_by_name("Shield Wall"), code.get_spell_name_by_name("Shield Block"),
@@ -403,6 +414,9 @@ function AB.InitializeCategories()
 		"ROGUE", code.get_spell_name_by_name("Deadly Poison"),
 		"ROGUE", code.get_spell_name_by_name("Wound Poison"),
 		"ROGUE", code.get_spell_name_by_name("Crippling Poison"),
+		"SHAMAN", code.get_spell_name_by_name("Flametongue Weapon"),
+		"SHAMAN", code.get_spell_name_by_name("Thunderstrike Ward"),
+		"SHAMAN", code.get_spell_name_by_name("Windfury Weapon"),
 	})
 
 	AutoBarCategoryList["Spell.Crafting"] = SpellsCategory:new( "Spell.Crafting", spellIconList["First Aid"],
